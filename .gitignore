@@ -1,5 +1,6 @@
 raw_data/
 .envrc
+.env
 *.log
 *.tmp
 *.swp
