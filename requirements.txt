@@ -11,3 +11,7 @@ jupyterlab
 jupyterlab_pygments
 jupyterlab_server
 jupyterlab_widgets
+numpy
+pandas
+matplotlib
+nltk
