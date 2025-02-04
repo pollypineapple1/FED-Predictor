@@ -1,3 +1,5 @@
+# List all third-party packages to add to your local environment
+
 ipykernel
 jupyter
 jupyter-console
@@ -19,3 +21,7 @@ transformers
 torch
 torchvision
 torchaudio
+pytest
+colorama
+datetime
+python-dotenv

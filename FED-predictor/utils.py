@@ -1,0 +1,1 @@
+# Useful python functions with no dependencies on taxifare logic
