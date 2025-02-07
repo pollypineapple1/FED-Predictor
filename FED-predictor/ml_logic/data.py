@@ -2,14 +2,18 @@
 # First set of functions to exectue
 
 # IMPORTS
-import numpy as np
 import pandas as pd
 import os
 from dotenv import load_dotenv
 from colorama import Fore, Style
 from datetime import timedelta
+from pathlib import Path
 
-from params import LEARNING_RATE, RANDOM_STATE
+from params import RAW_DATA_PATH, TEXT_FILE, RATES_FILE
+
+# Helper function to ensure directory exists
+def ensure_dir_exists(path):
+    Path(path).mkdir(parents=True, exist_ok=True)
 
 ######## load_raw_data ########
 # Description: import raw from a local folder into a dataframe
@@ -26,28 +30,22 @@ def load_raw_data():
     
     print(Fore.MAGENTA + "\nLoading raw data..." + Style.RESET_ALL)
         
-    base_path = os.getenv("BASE_PATH")
-    data_dir = os.getenv("DATA_DIR")
-    text_file = os.getenv("TEXT_FILE")
-    rates_file = os.getenv("RATES_FILE")
-    
     # Construct full file paths
-    TEXT_DATA = os.path.join(base_path, data_dir, text_file)
-    RATES_DATA = os.path.join(base_path, data_dir, rates_file)
+    text_data = os.path.join(RAW_DATA_PATH, TEXT_FILE)
+    rates_data = os.path.join(RAW_DATA_PATH, RATES_FILE)
 
-    
      # Debugging: Check if paths exist
-    if not os.path.exists(TEXT_DATA):
-        raise FileNotFoundError(f"Error: The text file was not found at {TEXT_DATA}")
+    if not os.path.exists(text_data):
+        raise FileNotFoundError(f"Error: The text file was not found at {text_data}")
 
-    if not os.path.exists(RATES_DATA):
-        raise FileNotFoundError(f"Error: The rates file was not found at {RATES_DATA}")
+    if not os.path.exists(rates_data):
+        raise FileNotFoundError(f"Error: The rates file was not found at {rates_data}")
 
     
-    text_df = pd.read_csv(TEXT_DATA)
-    rates_df = pd.read_csv(RATES_DATA)
+    text_df = pd.read_csv(text_data)
+    rates_df = pd.read_csv(rates_data)
     
-    print(f"Data loaded from {TEXT_DATA, RATES_DATA}")
+    print(f"Data loaded from {text_data, rates_data}")
     
     return text_df, rates_df
 

@@ -9,9 +9,8 @@ import torch.optim as optim
 
 from sklearn.metrics import accuracy_score
 
-from params import INPUT_DIM,HIDDEN_DIM, OUTPUT_DIM, K, LEARNING_RATE, RANDOM_STATE, EPOCHS
-
-from encoders import class_weighting
+from params import HIDDEN_DIM, OUTPUT_DIM, K, LEARNING_RATE, RANDOM_STATE, EPOCHS
+from ml_logic.encoders import class_weighting, custom_train_test_split, tensor_conversion
 
 # we build the model through a Class function because it's easier to separate tasks and use the mo`del mo`dularly
 # we also store various statistics this way within class comands so we do not have to worry about `it`
@@ -38,7 +37,7 @@ class BiLSTM(nn.Module):
 # Seps:        
 # Output: BiLSTM model
 
-def initialize_model(X_train, hidden_dim, output_dim):
+def initialize_model(X_train, hidden_dim = HIDDEN_DIM, output_dim = OUTPUT_DIM):
     
     input_dim = X_train.shape[1]
     
@@ -93,12 +92,15 @@ def evaluate_model(model, X_test_tensor, y_test_tensor):
 # Kwargs: 
 # Seps:        
 
-def train_model(X_train_tensor, y_train_tensor, y_train, n_splits=K):
+def train_model(pairing_df, n_splits=K):
+    
+    X_train, X_test, y_train, y_test = custom_train_test_split(pairing_df)
+    X_train_tensor, y_train_tensor = tensor_conversion(X_train,y_train)
     
     kf = KFold(n_splits=K, shuffle=True, random_state=RANDOM_STATE)
     
     fold_accuracies =[]
-    
+        
     for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_tensor, y_train_tensor)):
         print(f"Training fold {fold + 1}/{K}...")
 

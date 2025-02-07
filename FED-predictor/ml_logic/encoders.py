@@ -4,7 +4,6 @@
 # IMPORTS
 import numpy as np
 import pandas as pd
-import os
 
 import torch
 from sklearn.preprocessing import OrdinalEncoder
@@ -65,9 +64,9 @@ def finalize_df(df):
     
     # since we are dealing with NaNs in minutes_embedding, we add a conditionality when stacking the two arrays
     # this makes sure the size of the array is the same even if we generat a 1D 0 array for NaNs previously
-    df['combined_embedding'] = df.apply(
-        lambda row: np.hstack((row['statement_embedding'].squeeze(), 
-                           (row['minutes_embedding'].squeeze() if isinstance(row['minutes_embedding'], np.ndarray) else np.zeros(768)))), 
+    df['combined_vectorization'] = df.apply(
+        lambda row: np.hstack((row['statement_vectorized'].squeeze(), 
+                           (row['minutes_vectorized'].squeeze() if isinstance(row['minutes_vectorized'], np.ndarray) else np.zeros(768)))), 
         axis=1
     )
     
@@ -86,7 +85,7 @@ def custom_train_test_split(df, test_size = TEST_SIZE, random_state = RANDOM_STA
     X = np.vstack(df['combined_vectorization'].values)
     y = df['decision_encoded'].values
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size, random_state)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= test_size, random_state=random_state)
     
     return X_train, X_test, y_train, y_test
 
