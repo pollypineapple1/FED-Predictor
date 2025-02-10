@@ -4,6 +4,7 @@
 # IMPORTS
 import numpy as np
 import pandas as pd
+import ast
 
 import torch
 from sklearn.preprocessing import OrdinalEncoder
@@ -40,14 +41,14 @@ def FinBERT_vectorizaion(text):
     
     # Ensure text is not empty or NaN
     if pd.isna(text) or text.strip() == "":
-        return np.zeros((768,))  # Return a zero-vector if input is empty or NaN
+        return np.zeros((768,),dtype=np.float32)  # Return a zero-vector if input is empty or NaN
     
     # Proceed with tokenization and embedding generation
     inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt", max_length=512)
     with torch.no_grad():
         outputs = model(**inputs)
     
-    return outputs.last_hidden_state[:, 0, :].numpy()  
+    return outputs.last_hidden_state[:, 0, :].squeeze().numpy().astype(np.float32)  
 
 ######## fianl_df ########
 # Description:  prepares the final dataframe before modeling
@@ -58,17 +59,24 @@ def FinBERT_vectorizaion(text):
 
 def finalize_df(df):
     
-    df['statement_vectorized'] = df['grouped_statements'].apply(lambda x: FinBERT_vectorizaion(str(x)))
-    df['minutes_vectorized'] = df['grouped_minutes'].apply(lambda x: FinBERT_vectorizaion(str(x)))
-    
-    
-    # since we are dealing with NaNs in minutes_embedding, we add a conditionality when stacking the two arrays
-    # this makes sure the size of the array is the same even if we generat a 1D 0 array for NaNs previously
+    # Vectorize statements and minutes
+    df['statement_vectorized'] = df['grouped_statements'].apply(lambda x: np.array(FinBERT_vectorizaion(str(x)), dtype=np.float32))
+    df['minutes_vectorized'] = df['grouped_minutes'].apply(lambda x: np.array(FinBERT_vectorizaion(str(x)), dtype=np.float32))
+
+    # Combine the two vectors into one
     df['combined_vectorization'] = df.apply(
-        lambda row: np.hstack((row['statement_vectorized'].squeeze(), 
-                           (row['minutes_vectorized'].squeeze() if isinstance(row['minutes_vectorized'], np.ndarray) else np.zeros(768)))), 
+        lambda row: np.hstack((
+            row['statement_vectorized'],  # Ensure this is a numpy array
+            row['minutes_vectorized'] if isinstance(row['minutes_vectorized'], np.ndarray) else np.zeros(768, dtype=np.float32)
+        )),
         axis=1
     )
+    
+    # Make sure the 'combined_vectorization' column is stored as a numpy array of dtype float32
+    df['combined_vectorization'] = df['combined_vectorization'].apply(lambda x: np.array(x, dtype=np.float32))
+    
+    # Debugging: Check data type after processing
+    print(df['combined_vectorization'].apply(type).head(3))  # Should show <class 'numpy.ndarray'>
     
     return df
 
@@ -79,14 +87,17 @@ def finalize_df(df):
 # Seps:        
 # Output: np.arrays
 
-def custom_train_test_split(df, test_size = TEST_SIZE, random_state = RANDOM_STATE): 
+def custom_train_test_split(df, test_size=TEST_SIZE, random_state=RANDOM_STATE):
     
-    # convert the columns to np arays
+    # Convert stringified arrays back to real NumPy arrays
+    df['combined_vectorization'] = df['combined_vectorization'].apply(lambda x: np.array(ast.literal_eval(x), dtype=np.float32) if isinstance(x, str) else x)
+
+    # Stack the arrays to create the feature matrix
     X = np.vstack(df['combined_vectorization'].values)
     y = df['decision_encoded'].values
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= test_size, random_state=random_state)
-    
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=random_state)
+
     return X_train, X_test, y_train, y_test
 
 ######## class_weighting ########
@@ -97,6 +108,10 @@ def custom_train_test_split(df, test_size = TEST_SIZE, random_state = RANDOM_STA
 # Output: weights of each class
 
 def class_weighting (y_train):
+
+    # Convert y_train to a Pandas Series to use value_counts
+    y_train = pd.Series(y_train)
+    
     # Count occurrences in y_train
     class_counts = y_train.value_counts().sort_index().values  # Ensure ordering is correct
 
@@ -104,7 +119,6 @@ def class_weighting (y_train):
     class_weights = torch.tensor([1 / count for count in class_counts], dtype=torch.float32)
     
     return class_weights
-
 ######## tensor_conversion ########
 # Description:  converts data to PyTorch tensors
 # Args: 

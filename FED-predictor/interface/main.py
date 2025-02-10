@@ -3,6 +3,9 @@
 import logging
 import pandas as pd
 from pathlib import Path
+import numpy as np
+import json
+import pickle
 
 from params import *
 from ml_logic.data import load_raw_data, ensure_dir_exists, adjust_column_names, format_raw_data, sort_dates, text_encode, group_text, sliding_window
@@ -46,10 +49,11 @@ def load_and_format ():
         # sliding_window
         pairing_df = sliding_window(rates_df, text_df)
     
-        # Save processed data
+        # Save processed data as pickle
         output_path = RAW_DATA_PATH
         ensure_dir_exists(output_path)  # Ensure the directory exists
-        pairing_df.to_csv(Path(output_path) / "formatted_df.csv", index=False)
+        with open(Path(output_path) / "formatted_df.pkl", 'wb') as f:
+            pickle.dump(pairing_df, f)
         
         logger.info("Data loaded and formatted successfully.")
         return pairing_df
@@ -69,24 +73,31 @@ def load_and_format ():
 #        Convert train and test arrays to PyTorch tensors.
 # Output : X_train_tensor, X_test_tensor, y_train_tensor, y_test_tensor
 
-def preprocess ():
+def preprocess():
+    try:
+        # Load data
+        input_path = RAW_DATA_PATH
+        with open(Path(input_path) / "formatted_df.pkl", 'rb') as f:
+            pairing_df = pickle.load(f)
 
-    # Load data
-    input_path = RAW_DATA_PATH
-    pairing_df = pairing_df = pd.read_csv(Path(input_path) / "formatted_df.csv")
+        # Ordinal encode the rate decision
+        pairing_df = ordinal_encode(pairing_df, 'decision')
 
-    # ordional_encode the rate decision
-    pairing_df = ordinal_encode(pairing_df, 'decision')
+        # Finalize the DataFrame
+        pairing_df = finalize_df(pairing_df)
+        pairing_df['combined_vectorization'] = np.array(pairing_df['combined_vectorization'])
 
-    # finalize_df
-    pairing_df = finalize_df(pairing_df)
-        
-    # Save processed data
-    output_path = PROCESSED_DATA_PATH
-    ensure_dir_exists(output_path)  # Ensure the directory exists
-    pairing_df.to_csv(Path(output_path) / "preprocessed_df.csv", index=False)
+        # Save processed data as pickle
+        output_path = PROCESSED_DATA_PATH
+        ensure_dir_exists(output_path)  # Ensure the directory exists
+        with open(Path(output_path) / "preprocessed_df.pkl", 'wb') as f:
+            pickle.dump(pairing_df, f)
 
-    return pairing_df
+        return pairing_df
+    
+    except Exception as e:
+        logger.error(f"Error in preprocess: {e}")
+        raise
 
     
 ######## train_and_evaluate ########
@@ -101,20 +112,29 @@ def train_and_evaluate():
     try:
         # Load data
         input_path = PROCESSED_DATA_PATH
-        pairing_df = pairing_df = pd.read_csv(Path(input_path) / "preprocessed_df.csv")
+        with open(Path(input_path) / "preprocessed_df.pkl", 'rb') as f:
+            pairing_df = pickle.load(f)
 
-        # initialize, compile, train and evaluate model
-        model, average_accuracy = train_model(pairing_df)
-    
-        # Save the trained model and results
+        # Initialize, compile, train, and evaluate model
+        model, average_accuracy, fold_accuracies = train_model(pairing_df)
+
+        # Save the trained model
         save_model(model)
-        save_results(average_accuracy)
-        
+
+        # Prepare evaluation parameters (you can add more details as needed)
+        params = {
+            "model_architecture": "YourModelArchitecture",  # Replace with actual architecture info
+            "learning_rate": LEARNING_RATE,
+            "batch_size": 32,  # Replace with your actual batch size
+            "epochs": EPOCHS
+        }
+
+        # Save results (model parameters and metrics)
+        save_results(params, {"accuracy": fold_accuracies, "average_accuracy": average_accuracy})
+
         logger.info("Training completed and model saved successfully.")
         return model, average_accuracy  # Optionally return results if needed later
     
     except Exception as e:
         logger.error(f"Error in train_and_evaluate: {e}")
         raise
-
-    return model, average_accuracy

@@ -4,8 +4,8 @@ import os
 
 # ENCODER.PY
 RENAME_RATES = {'release date': 'date', 'actual': 'rate'}
-TEST_SIZE=0.2 
-RANDOM_STATE=42
+TEST_SIZE = 0.2 
+RANDOM_STATE = 42
 
 # MODEL.PY
 HIDDEN_DIM = 128

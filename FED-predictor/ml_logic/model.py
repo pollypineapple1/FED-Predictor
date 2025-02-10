@@ -138,5 +138,5 @@ def train_model(pairing_df, n_splits=K):
         average_accuracy = np.mean(fold_accuracies)
         print(f"\nAverage Cross-Validation Accuracy: {average_accuracy:.4f}")
 
-    return model, average_accuracy
+    return model, average_accuracy, fold_accuracies
 

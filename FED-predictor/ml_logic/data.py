@@ -12,8 +12,13 @@ from pathlib import Path
 from params import RAW_DATA_PATH, TEXT_FILE, RATES_FILE
 
 # Helper function to ensure directory exists
-def ensure_dir_exists(path):
-    Path(path).mkdir(parents=True, exist_ok=True)
+def ensure_dir_exists(file_path):
+    """
+    Ensure that the directory for the file path exists. If not, create it.
+    """
+    dir_name = os.path.dirname(file_path)
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
 
 ######## load_raw_data ########
 # Description: import raw from a local folder into a dataframe
@@ -29,7 +34,12 @@ def load_raw_data():
     load_dotenv(override=True)
     
     print(Fore.MAGENTA + "\nLoading raw data..." + Style.RESET_ALL)
-        
+    
+    # Debugging: Check if environment variables are loaded correctly
+    print(f"RAW_DATA_PATH: {RAW_DATA_PATH}")
+    print(f"TEXT_FILE: {TEXT_FILE}")
+    print(f"RATES_FILE: {RATES_FILE}")
+    
     # Construct full file paths
     text_data = os.path.join(RAW_DATA_PATH, TEXT_FILE)
     rates_data = os.path.join(RAW_DATA_PATH, RATES_FILE)
@@ -65,6 +75,8 @@ def adjust_column_names(df, rename_dict=None):
     if rename_dict:  # Only rename if a valid dictionary is provided
         df = df.rename(columns=rename_dict)
 
+    print(f"Columns after adjustment: {df.columns}")
+    
     return df
 
 ######## format_raw_data ########
@@ -82,9 +94,12 @@ def format_raw_data(
     rate='rate'
 ):
 
-    text_df[date] = pd.to_datetime(text_df[date], format='%Y%m%d')
-    rates_df[date] = pd.to_datetime(rates_df[date], format='%b %d, %Y')
-
+    try:
+        text_df[date] = pd.to_datetime(text_df[date], format='%Y%m%d')
+        rates_df[date] = pd.to_datetime(rates_df[date], format='%b %d, %Y')  # Note: specific format for rate dates
+    except Exception as e:
+        raise ValueError(f"Error while converting date columns: {e}")
+    
     rates_df[rate] = rates_df[rate].str.rstrip('%').astype(float)
 
     start_date_text_df = text_df[date].min()
@@ -126,16 +141,21 @@ def sort_dates(df, df_type, reference_df=None):
    
 def text_encode(df, column, df_type):
     
-    if df_type == 'text':  # Check if it's a text DataFrame
+    # Ensure the column exists before applying any transformation
+    if column not in df.columns:
+        raise KeyError(f"Column '{column}' does not exist in the {df_type} dataframe.")
+    
+    if df_type == 'text': # check what df_type it is
         df['type_text'] = df[column].apply(lambda x: 'statement' if x == 0 else 'minutes')
-
-    elif df_type == 'rates':  # Check if it's a rates DataFrame
-        df['rate_change'] = df[column].diff()
+    
+    elif df_type == 'rates':
+        df['rate_change'] = df[column].diff()  # Calculate the difference in rate values
         df['rate_change_text'] = df['rate_change'].apply(lambda x: 'up' if x > 0 else ('down' if x < 0 else 'no change')).astype(str)
         
-    else:  # Handle incorrect df_type values
-        return "Error: Invalid df_type. Choose 'text' or 'rates'."
+    else:
+        raise ValueError("Invalid df_type. Choose 'text' or 'rates'.")
 
+    print(f"{df_type} dataframe after encoding:\n", df.head())
     return df
 
 ######## group_text ########
