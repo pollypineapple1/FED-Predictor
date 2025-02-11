@@ -1,6 +1,6 @@
 import pandas as pd
-from ml_logic.data import load_raw_data
 
+from data import load_raw_data
 
 def test_load_data():
 
@@ -16,3 +16,5 @@ def test_load_data():
         print(rates_df.head())
     else:
         print("There was an error loading the data.")
+
+    print(f"Predicted Class: {predicted_class_label}")            

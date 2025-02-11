@@ -9,6 +9,7 @@ import ast
 import torch
 from sklearn.preprocessing import OrdinalEncoder
 from transformers import AutoTokenizer, AutoModel
+import PyPDF2
 
 from sklearn.model_selection import train_test_split
 from params import TEST_SIZE, RANDOM_STATE
@@ -119,6 +120,8 @@ def class_weighting (y_train):
     class_weights = torch.tensor([1 / count for count in class_counts], dtype=torch.float32)
     
     return class_weights
+
+
 ######## tensor_conversion ########
 # Description:  converts data to PyTorch tensors
 # Args: 
@@ -136,3 +139,54 @@ def tensor_conversion(X_train, y_train):
     y_train_tensor = torch.tensor(y_train, dtype=torch.long)
     
     return X_train_tensor, y_train_tensor
+        
+        
+######## extract_text_from_pdf ########
+# Description: Reads text from a PDF file
+# Args: 
+# Kwargs: 
+# Seps:        
+# Output:
+
+def extract_text_from_pdf(pdf_path: str):
+
+    text = ""
+    with open(pdf_path, "rb") as file:
+        reader = PyPDF2.PdfReader(file)
+        for page in reader.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+
+    if not text.strip():
+        raise ValueError("No text could be extracted from the PDF.")
+
+    return text
+
+
+######## prepare_input_text ########
+# Description: Extracts text from a PDF, processes it with FinBERT, and converts it into a tensor
+# Args: The PDF
+# Kwargs: 
+# Seps:        
+# Output: A tensor suitable for model input
+
+def prepare_input_text(pdf_path: str):
+    
+    if not pdf_path.lower().endswith(".pdf"):
+        raise ValueError("Only PDF files are supported.")
+
+    # Extract text from the PDF
+    text = extract_text_from_pdf(pdf_path)
+    
+    # Convert text to vector representation using FinBERT
+    statement_vector = FinBERT_vectorizaion(text)
+
+    # Combine vectors (if you have a second vector like minutes_vectorized, combine them here)
+    # If you have other parts like 'grouped_minutes', combine them similarly.
+    combined_vector = np.hstack((statement_vector))  # Add other vectors here if needed
+    
+    # Convert the numpy array to a tensor
+    input_tensor = torch.tensor(combined_vector, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+    
+    return input_tensor

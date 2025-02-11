@@ -5,14 +5,15 @@ import torch
 import os
 import time
 import pickle
+import shutil
+
 from params import *
 from ml_logic.data import ensure_dir_exists
 
-def save_model(model: torch.nn.Module, model_dir: str = LOCAL_REGISTRY_PATH) -> None:
+def save_model(model: torch.nn.Module, model_dir: str = LOCAL_REGISTRY_PATH) -> str:
     """
     Save the trained PyTorch model to disk using model's state_dict.
-    The model is saved to a path including a timestamp, like:
-    f"{model_dir}/models/{timestamp}.pth"
+    Also saves a timestamp for tracking purposes.
     """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     model_path = os.path.join(model_dir, "models", f"{timestamp}.pth")
@@ -24,34 +25,31 @@ def save_model(model: torch.nn.Module, model_dir: str = LOCAL_REGISTRY_PATH) -> 
     torch.save(model.state_dict(), model_path)
     
     print(f"Model saved to {model_path}")
-    return None
+    return model_path
 
-def load_model(model_path=None) -> keras.Model:
+def load_model(model_path: str = None) -> torch.nn.Module:
     """
-    Load the model from the specified path.
-    Default path is within LOCAL_REGISTRY_PATH under models directory.
+    Load the best model from the checkpoint directory if no specific path is given.
     """
     if model_path is None:
-        model_path = os.path.join(LOCAL_REGISTRY_PATH, "models", "best_model.keras")
-        print(f"Attempting to load model from: {model_path}")
-    
+        model_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")
+        print(f"Attempting to load best model from: {model_path}")
+
     if not os.path.exists(model_path):
-        print(f"No such file or directory: '{model_path}'")
-        raise FileNotFoundError(f"No such file or directory: '{model_path}'")
+        raise FileNotFoundError(f"Model file not found: {model_path}")
 
     try:
-        model = keras.models.load_model(model_path)
-        print("Model loaded successfully.")
+        model = torch.load(model_path)
+        print("Best model loaded successfully.")
         return model
     except Exception as e:
         print(f"Error loading model: {e}")
         raise OSError(f"Unable to load model from '{model_path}': {e}")
 
 
-def save_results(params: dict, metrics: dict) -> None:
+def save_results(params: dict, metrics: dict, model_path: str) -> None:
     """
-    Persist params & metrics locally on the hard drive at
-    "{LOCAL_REGISTRY_PATH}/params/{current_timestamp}.pickle"
+    Save params & metrics to disk and track the best model.
     """
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     # Correct file path with timestamp + .pickle
@@ -62,6 +60,50 @@ def save_results(params: dict, metrics: dict) -> None:
 
     # Save the results to the file
     with open(results_path, "wb") as f:
-        pickle.dump({"params": params, "metrics": metrics}, f)
+        pickle.dump({"params": params, "metrics": metrics, "model_path": model_path}, f)
 
     print(f"Results saved to {results_path}")
+
+    # Track best model
+    save_best_model()
+
+
+def save_best_model() -> None:
+    """
+    Find the best model based on highest accuracy and save it as 'best_model.pth' in the checkpoint directory.
+    """
+    params_dir = os.path.join(LOCAL_REGISTRY_PATH, "params")
+    models_dir = os.path.join(LOCAL_REGISTRY_PATH, "models")
+
+    if not os.path.exists(params_dir):
+        print("No parameters directory found, skipping best model update.")
+        return
+
+    best_model_path = None
+    best_accuracy = 0.0
+
+    for filename in os.listdir(params_dir):
+        if filename.endswith(".pickle"):
+            params_path = os.path.join(params_dir, filename)
+
+            with open(params_path, "rb") as f:
+                data = pickle.load(f)
+
+            # Ensure metrics and accuracy exist
+            if "metrics" in data and "accuracy" in data["metrics"] and "model_path" in data:
+                accuracy = data["metrics"]["accuracy"]
+                model_path = data["model_path"]
+
+                if accuracy > best_accuracy:
+                    best_accuracy = accuracy
+                    best_model_path = model_path
+
+    if best_model_path and os.path.exists(best_model_path):
+        ensure_dir_exists(CHECKPOINT_DIR)  # Ensure the directory exists
+        os.makedirs(CHECKPOINT_DIR, exist_ok=True)  # ✅ Add this line
+        checkpoint_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")
+        shutil.copy(best_model_path, checkpoint_path)
+        print(f"Best model updated: {checkpoint_path} (Accuracy: {best_accuracy:.4f})")
+    else:
+        print("No valid best model found.")
+    

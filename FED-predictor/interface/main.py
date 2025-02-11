@@ -4,14 +4,19 @@ import logging
 import pandas as pd
 from pathlib import Path
 import numpy as np
-import json
+import torch
 import pickle
+from colorama import Fore, Style
+import sys
+import os
 
+# Add the parent directory (FED-Predictor) to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from params import *
 from ml_logic.data import load_raw_data, ensure_dir_exists, adjust_column_names, format_raw_data, sort_dates, text_encode, group_text, sliding_window
-from ml_logic.encoders import ordinal_encode, finalize_df
+from ml_logic.encoders import ordinal_encode, finalize_df, prepare_input_text
 from ml_logic.model import train_model 
-from ml_logic.registry import save_model, save_results
+from ml_logic.registry import save_model, save_results, load_model
 
 
 # Set up logging once at the beginning of the script
@@ -118,8 +123,8 @@ def train_and_evaluate():
         # Initialize, compile, train, and evaluate model
         model, average_accuracy, fold_accuracies = train_model(pairing_df)
 
-        # Save the trained model
-        save_model(model)
+        # Save the trained model and get the model path
+        model_path = save_model(model)
 
         # Prepare evaluation parameters (you can add more details as needed)
         params = {
@@ -130,7 +135,8 @@ def train_and_evaluate():
         }
 
         # Save results (model parameters and metrics)
-        save_results(params, {"accuracy": fold_accuracies, "average_accuracy": average_accuracy})
+        save_results(params, {"accuracy": average_accuracy, "average_accuracy": average_accuracy}, model_path)
+
 
         logger.info("Training completed and model saved successfully.")
         return model, average_accuracy  # Optionally return results if needed later
@@ -138,3 +144,47 @@ def train_and_evaluate():
     except Exception as e:
         logger.error(f"Error in train_and_evaluate: {e}")
         raise
+    
+
+######## predict ########
+# Description: 
+# Args: 
+# Kwargs: N/A
+# Seps:  
+# Output :  
+    
+def predict():
+    print(Fore.MAGENTA + "\n⭐️ Use case: predict" + Style.RESET_ALL)
+    
+    # # Construct full file path and import the
+    # test_path = os.path.join(TEST_TEXT_PATH, TEST_FILE)
+    # text = pd.read_csv(test_path)
+    
+    # Prepare the input
+    text_tensor  = prepare_input_text(text)
+
+    # Load the trained model
+    model_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")  # Default to best model path
+    model = load_model(model_path)  # Load your trained model from the saved checkpoint
+
+    if not model:
+        raise ValueError("No trained model found. Please train the model first.")
+
+    model.eval()  # Set the model to evaluation mode
+
+    # Make the prediction
+    with torch.no_grad():  # Disable gradient calculation for inference
+        outputs = model(text_tensor)  # Forward pass
+
+    # Get predicted class with highest probability
+    prediction = torch.softmax(outputs, dim=1).numpy()  # Convert logits to probabilities
+    predicted_class_index = np.argmax(prediction)
+
+    # Class labels (you can adjust based on your model's output)
+    class_names = ["up", "no change", "down"]
+
+    # Get the predicted class label
+    predicted_class_label = class_names[predicted_class_index]
+
+    print('✅ Prediction complete.')
+    print(f"Predicted Class: {predicted_class_label}")

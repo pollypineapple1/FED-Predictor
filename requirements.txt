@@ -25,3 +25,9 @@ pytest
 colorama
 datetime
 python-dotenv
+
+
+# API
+fastapi
+pytz
+uvicorn
