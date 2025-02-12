@@ -25,9 +25,10 @@ pytest
 colorama
 datetime
 python-dotenv
-
+PyPDF2
 
 # API
 fastapi
 pytz
 uvicorn
+python-multipart
