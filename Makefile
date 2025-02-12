@@ -8,4 +8,3 @@ install:
 
 test:
 	@pytest -v test
-
