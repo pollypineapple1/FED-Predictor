@@ -9,7 +9,7 @@ import torch.optim as optim
 
 from sklearn.metrics import accuracy_score
 
-from params import HIDDEN_DIM, OUTPUT_DIM, K, LEARNING_RATE, RANDOM_STATE, EPOCHS
+from params import IMPUT_DIM, HIDDEN_DIM, OUTPUT_DIM, K, LEARNING_RATE, RANDOM_STATE, EPOCHS
 from ml_logic.encoders import class_weighting, custom_train_test_split, tensor_conversion
 
 # we build the model through a Class function because it's easier to separate tasks and use the mo`del mo`dularly
@@ -37,9 +37,9 @@ class BiLSTM(nn.Module):
 # Seps:        
 # Output: BiLSTM model
 
-def initialize_model(X_train, hidden_dim = HIDDEN_DIM, output_dim = OUTPUT_DIM):
+def initialize_model(X_train, input_dim = IMPUT_DIM, hidden_dim = HIDDEN_DIM, output_dim = OUTPUT_DIM):
     
-    input_dim = X_train.shape[1]
+    # input_dim = X_train.shape[1]
     
     model = BiLSTM(input_dim, hidden_dim, output_dim)
     

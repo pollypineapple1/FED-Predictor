@@ -148,45 +148,96 @@ def tensor_conversion(X_train, y_train):
 # Seps:        
 # Output:
 
-def extract_text_from_pdf(pdf_path: str):
-
+def extract_text_from_pdf(file_obj):
+# version which handles files upload through fast.py
     text = ""
-    with open(pdf_path, "rb") as file:
-        reader = PyPDF2.PdfReader(file)
-        for page in reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+    reader = PyPDF2.PdfReader(file_obj)
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
 
     if not text.strip():
         raise ValueError("No text could be extracted from the PDF.")
 
     return text
 
+# def extract_text_from_pdf(pdf_path: str):
+# version for testing with  file saved locally
+#     text = ""
+#     with open(pdf_path, "rb") as file:
+#         reader = PyPDF2.PdfReader(file)
+#         for page in reader.pages:
+#             page_text = page.extract_text()
+#             if page_text:
+#                 text += page_text + "\n"
+
+#     if not text.strip():
+#         raise ValueError("No text could be extracted from the PDF.")
+
+#     return text
 
 ######## prepare_input_text ########
 # Description: Extracts text from a PDF, processes it with FinBERT, and converts it into a tensor
+#              Handles variable-length feature vectors by padding or truncating to 1536
 # Args: The PDF
 # Kwargs: 
 # Seps:        
 # Output: A tensor suitable for model input
 
-def prepare_input_text(pdf_path: str):
+def prepare_input_text(file_obj):
     
-    if not pdf_path.lower().endswith(".pdf"):
-        raise ValueError("Only PDF files are supported.")
+    # Extract text from the PDF directly from the file-like object
+    text = extract_text_from_pdf(file_obj)
+    
+    # Convert text to vector representation using FinBERT (assuming this part is correct)
+    vector = FinBERT_vectorizaion(text)  # (1536,) shape
 
-    # Extract text from the PDF
-    text = extract_text_from_pdf(pdf_path)
-    
-    # Convert text to vector representation using FinBERT
-    statement_vector = FinBERT_vectorizaion(text)
+    # Ensure the vector has the correct size (1536)
+    expected_dim = 1536  # Model input size
+    current_dim = vector.shape[0]
 
-    # Combine vectors (if you have a second vector like minutes_vectorized, combine them here)
-    # If you have other parts like 'grouped_minutes', combine them similarly.
-    combined_vector = np.hstack((statement_vector))  # Add other vectors here if needed
-    
-    # Convert the numpy array to a tensor
-    input_tensor = torch.tensor(combined_vector, dtype=torch.float32).unsqueeze(0)  # Add batch dimension
+    if current_dim < expected_dim:
+        # Pad with zeros
+        vector = np.hstack((vector, np.zeros(expected_dim - current_dim)))
+    elif current_dim > expected_dim:
+        # Truncate
+        vector = vector[:expected_dim]
+
+    # Ensure correct input shape
+    vector = vector.reshape(1, 1, expected_dim)  # Shape: (batch_size=1, seq_len=1, input_dim=1536)
+
+    # Convert to tensor
+    input_tensor = torch.tensor(vector, dtype=torch.float32)
     
     return input_tensor
+
+# def prepare_input_text(pdf_path: str):
+# version for testing with  file saved locally    
+#     if not pdf_path.lower().endswith(".pdf"):
+#         raise ValueError("Only PDF files are supported.")
+
+#     # Extract text from the PDF
+#     text = extract_text_from_pdf(pdf_path)
+    
+#     # Convert text to vector representation using FinBERT
+#     vector = FinBERT_vectorizaion(text)  # (1536,) shape
+
+#     # Ensure the vector has the correct size (1536)
+#     expected_dim = 1536  # Model input size
+#     current_dim = vector.shape[0]
+
+#     if current_dim < expected_dim:
+#         # Pad with zeros
+#         vector = np.hstack((vector, np.zeros(expected_dim - current_dim)))
+#     elif current_dim > expected_dim:
+#         # Truncate
+#         vector = vector[:expected_dim]
+
+#     # Ensure correct input shape
+#     vector = vector.reshape(1, 1, expected_dim)  # Shape: (batch_size=1, seq_len=1, input_dim=1536)
+
+#     # Convert to tensor
+#     input_tensor = torch.tensor(vector, dtype=torch.float32)
+    
+#     return input_tensor

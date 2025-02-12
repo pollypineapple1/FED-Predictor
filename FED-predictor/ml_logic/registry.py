@@ -9,6 +9,7 @@ import shutil
 
 from params import *
 from ml_logic.data import ensure_dir_exists
+from ml_logic.model import BiLSTM
 
 def save_model(model: torch.nn.Module, model_dir: str = LOCAL_REGISTRY_PATH) -> str:
     """
@@ -27,9 +28,10 @@ def save_model(model: torch.nn.Module, model_dir: str = LOCAL_REGISTRY_PATH) -> 
     print(f"Model saved to {model_path}")
     return model_path
 
-def load_model(model_path: str = None) -> torch.nn.Module:
+
+def load_model(model_path: str = None, input_dim=IMPUT_DIM, hidden_dim=HIDDEN_DIM, output_dim=OUTPUT_DIM):
     """
-    Load the best model from the checkpoint directory if no specific path is given.
+    Load the BiLSTM model from a checkpoint and initialize it with the correct architecture.
     """
     if model_path is None:
         model_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")
@@ -39,11 +41,25 @@ def load_model(model_path: str = None) -> torch.nn.Module:
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
     try:
-        model = torch.load(model_path)
-        print("Best model loaded successfully.")
+        checkpoint = torch.load(model_path, map_location=torch.device("cpu"))  # Load the saved state dictionary
+
+        # 🔹 Ensure input_dim is provided (# features)
+        if input_dim is None:
+            raise ValueError("`input_dim` must be provided to initialize the model.")
+
+        # 🔹 Initialize the BiLSTM model with correct dimensions
+        model = BiLSTM(input_dim, hidden_dim, output_dim)
+
+        # 🔹 Load the saved state dictionary
+        model.load_state_dict(checkpoint)
+
+        # 🔹 Set the model to evaluation mode
+        model.eval()
+        print("✅ BiLSTM model loaded successfully and set to evaluation mode.")
+
         return model
     except Exception as e:
-        print(f"Error loading model: {e}")
+        print(f"❌ Error loading model: {e}")
         raise OSError(f"Unable to load model from '{model_path}': {e}")
 
 

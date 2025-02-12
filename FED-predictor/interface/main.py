@@ -13,6 +13,7 @@ import os
 # Add the parent directory (FED-Predictor) to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from params import *
+
 from ml_logic.data import load_raw_data, ensure_dir_exists, adjust_column_names, format_raw_data, sort_dates, text_encode, group_text, sliding_window
 from ml_logic.encoders import ordinal_encode, finalize_df, prepare_input_text
 from ml_logic.model import train_model 
@@ -146,22 +147,21 @@ def train_and_evaluate():
         raise
     
 
-######## predict ########
+######## predict_test ########
 # Description: 
 # Args: 
 # Kwargs: N/A
 # Seps:  
 # Output :  
     
-def predict():
+def predict_test():
     print(Fore.MAGENTA + "\n⭐️ Use case: predict" + Style.RESET_ALL)
     
     # # Construct full file path and import the
-    # test_path = os.path.join(TEST_TEXT_PATH, TEST_FILE)
-    # text = pd.read_csv(test_path)
+    test_path = os.path.join(TEST_TEXT_PATH, TEST_FILE)
     
     # Prepare the input
-    text_tensor  = prepare_input_text(text)
+    text_tensor  = prepare_input_text(test_path)
 
     # Load the trained model
     model_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")  # Default to best model path
@@ -188,3 +188,47 @@ def predict():
 
     print('✅ Prediction complete.')
     print(f"Predicted Class: {predicted_class_label}")
+
+    return predicted_class_label
+
+
+######## predict ########
+# Description: 
+# Args: 
+# Kwargs: N/A
+# Seps:  
+# Output :  
+    
+def predict(file):
+    print(Fore.MAGENTA + "\n⭐️ Use case: predict" + Style.RESET_ALL)
+       
+    # Prepare the input
+    text_tensor  = prepare_input_text(file)
+
+    # Load the trained model
+    model_path = os.path.join(CHECKPOINT_DIR, "best_model.pth")  # Default to best model path
+    model = load_model(model_path)  # Load your trained model from the saved checkpoint
+
+    if not model:
+        raise ValueError("No trained model found. Please train the model first.")
+
+    model.eval()  # Set the model to evaluation mode
+
+    # Make the prediction
+    with torch.no_grad():  # Disable gradient calculation for inference
+        outputs = model(text_tensor)  # Forward pass
+
+    # Get predicted class with highest probability
+    prediction = torch.softmax(outputs, dim=1).numpy()  # Convert logits to probabilities
+    predicted_class_index = np.argmax(prediction)
+
+    # Class labels (you can adjust based on your model's output)
+    class_names = ["up", "no change", "down"]
+
+    # Get the predicted class label
+    predicted_class_label = class_names[predicted_class_index]
+
+    print('✅ Prediction complete.')
+    print(f"Predicted Class: {predicted_class_label}")
+
+    return predicted_class_label
