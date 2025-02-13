@@ -1,5 +1,4 @@
-# List all third-party packages to add to your local environment
-
+# General
 ipykernel
 jupyter
 jupyter-console
@@ -13,19 +12,26 @@ jupyterlab
 jupyterlab_pygments
 jupyterlab_server
 jupyterlab_widgets
+
+# Core packages
 numpy
 pandas
 matplotlib
 nltk
-transformers
-torch
-torchvision
-torchaudio
-pytest
 colorama
 datetime
 python-dotenv
 PyPDF2
+
+# Models
+scikit-learn
+tensorflow
+keras
+torch
+torchvision
+torchaudio
+transformers
+tokenizers
 
 # API
 fastapi
@@ -33,6 +39,9 @@ pytz
 uvicorn
 python-multipart
 
-# front end
+# Front-end
 streamlit
 requests
+
+# Testing
+pytest

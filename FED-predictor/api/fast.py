@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, File, UploadFile
 from interface.main import predict
 
 # # Add the parent directory (FED-Predictor) to the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 app = FastAPI()
 
